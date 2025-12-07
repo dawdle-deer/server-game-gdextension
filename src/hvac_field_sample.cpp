@@ -1,4 +1,5 @@
 #include "hvac_field_sample.h"
+
 #include "godot_cpp/core/math.hpp"
 
 /// @brief One-way blend to single value
@@ -40,13 +41,13 @@ int HVACFieldSample::get_grid_index() const {
 }
 
 void HVACFieldSample::_bind_methods() {
-	godot::ClassDB::bind_method(D_METHOD("set_position", "p_position"), &HVACFieldSample::set_position);
+	godot::ClassDB::bind_method(D_METHOD("set_position", "position"), &HVACFieldSample::set_position);
 	godot::ClassDB::bind_method(D_METHOD("get_position"), &HVACFieldSample::get_position);
-	godot::ClassDB::bind_method(D_METHOD("set_neighbors_valid", "p_neighbors_valid"), &HVACFieldSample::set_neighbors_valid);
+	godot::ClassDB::bind_method(D_METHOD("set_neighbors_valid", "neighbors_valid"), &HVACFieldSample::set_neighbors_valid);
 	godot::ClassDB::bind_method(D_METHOD("get_neighbors_valid"), &HVACFieldSample::get_neighbors_valid);
-	godot::ClassDB::bind_method(D_METHOD("set_temperature", "p_temperature"), &HVACFieldSample::set_temperature);
+	godot::ClassDB::bind_method(D_METHOD("set_temperature", "temperature"), &HVACFieldSample::set_temperature);
 	godot::ClassDB::bind_method(D_METHOD("get_temperature"), &HVACFieldSample::get_temperature);
-	godot::ClassDB::bind_method(D_METHOD("set_grid_index", "p_grid_index"), &HVACFieldSample::set_grid_index);
+	godot::ClassDB::bind_method(D_METHOD("set_grid_index", "grid_index"), &HVACFieldSample::set_grid_index);
 	godot::ClassDB::bind_method(D_METHOD("get_grid_index"), &HVACFieldSample::get_grid_index);
 
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "position"), "set_position", "get_position");

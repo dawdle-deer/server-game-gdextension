@@ -5,7 +5,10 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
+#include "heat_container.h"
+#include "hvac_field.h"
 #include "hvac_field_sample.h"
+#include "hvac_sim_parameters.h"
 
 using namespace godot;
 
@@ -13,7 +16,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	GDREGISTER_CLASS(HeatContainer);
+	GDREGISTER_CLASS(HVACSimParameters);
 	GDREGISTER_CLASS(HVACFieldSample);
+	GDREGISTER_CLASS(HVACField);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

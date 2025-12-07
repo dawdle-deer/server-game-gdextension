@@ -1,4 +1,5 @@
 #include "heat_container.h"
+
 #include "godot_cpp/core/math.hpp"
 
 void HeatContainer::set_temperature(float p_temperature) {
@@ -61,11 +62,11 @@ void HeatContainer::blend_to_temperature(float p_temperature, float p_delta, boo
 }
 
 void HeatContainer::_bind_methods() {
-	godot::ClassDB::bind_method(D_METHOD("set_temperature", "p_temperature"), &HeatContainer::set_temperature);
+	godot::ClassDB::bind_method(D_METHOD("set_temperature", "temperature"), &HeatContainer::set_temperature);
 	godot::ClassDB::bind_method(D_METHOD("get_temperature"), &HeatContainer::get_temperature);
-	godot::ClassDB::bind_method(D_METHOD("set_mass", "p_mass"), &HeatContainer::set_mass);
+	godot::ClassDB::bind_method(D_METHOD("set_mass", "mass"), &HeatContainer::set_mass);
 	godot::ClassDB::bind_method(D_METHOD("get_mass"), &HeatContainer::get_mass);
-	godot::ClassDB::bind_method(D_METHOD("set_heat_retention", "p_heat_retention"), &HeatContainer::set_heat_retention);
+	godot::ClassDB::bind_method(D_METHOD("set_heat_retention", "heat_retention"), &HeatContainer::set_heat_retention);
 	godot::ClassDB::bind_method(D_METHOD("get_heat_retention"), &HeatContainer::get_heat_retention);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature"), "set_temperature", "get_temperature");

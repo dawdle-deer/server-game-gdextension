@@ -20,6 +20,8 @@ public:
 
 	void blend_to_temperature(float p_temperature, float p_delta);
 
+	// setter/getters
+
 	void set_position(Vector3 p_position);
 	Vector3 get_position() const;
 
