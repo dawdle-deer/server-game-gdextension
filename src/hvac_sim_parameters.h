@@ -7,7 +7,7 @@
 using namespace godot;
 
 class HVACSimParameters : public Resource {
-	GDCLASS(HVACSimParameters, RefCounted)
+	GDCLASS(HVACSimParameters, Resource)
 
 protected:
 	static void _bind_methods();

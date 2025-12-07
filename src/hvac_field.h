@@ -13,7 +13,7 @@
 using namespace godot;
 
 class HVACField : public Resource {
-	GDCLASS(HVACField, RefCounted)
+	GDCLASS(HVACField, Resource)
 
 	int air_sample_iterator = 0;
 

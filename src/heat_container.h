@@ -7,7 +7,7 @@
 using namespace godot;
 
 class HeatContainer : public Resource {
-	GDCLASS(HeatContainer, RefCounted)
+	GDCLASS(HeatContainer, Resource)
 
 protected:
 	static void _bind_methods();

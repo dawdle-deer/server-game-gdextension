@@ -7,7 +7,7 @@
 using namespace godot;
 
 class HVACFieldSample : public Resource {
-	GDCLASS(HVACFieldSample, RefCounted)
+	GDCLASS(HVACFieldSample, Resource)
 
 protected:
 	static void _bind_methods();
