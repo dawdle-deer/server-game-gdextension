@@ -49,8 +49,14 @@ target_sources(${LIBNAME}
     PRIVATE
     src/register_types.cpp
     src/register_types.h
-    src/example_class.cpp
-    src/example_class.h
+    src/hvac_field.cpp
+    src/hvac_field.h
+    src/hvac_field_sample.cpp
+    src/hvac_field_sample.h
+    src/hvac_sim_parameters.cpp
+    src/hvac_sim_parameters.h
+    src/heat_container.cpp
+    src/heat_container.h
 )
 
 # Fetch a list of the xml files to use for documentation and add to our target

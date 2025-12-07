@@ -6,7 +6,8 @@ from methods import print_error
 
 
 libname = "ServerGameExt"
-projectdir = "C:/Users/Dawdle/Desktop/Home/Gamedev/Godot/server-game/gdext/fauna-lib"
+projectdir = "C:/Users/Dawdle/Desktop/Home/Gamedev/Godot/server-game/"
+libprojectpath = "gdext/fauna-lib/"
 
 localEnv = Environment(tools=["default"], PLATFORM="")
 
@@ -51,6 +52,9 @@ if env["target"] in ["editor", "template_debug"]:
 # .universal just means "compatible with all relevant arches" so we don't need to key it.
 suffix = env['suffix'].replace(".dev", "").replace(".universal", "")
 
+#env.Append(CPPPATH=["include/debug_draw_3d/src/"])
+#env.Append(LIBS=["libdd3d" + suffix], LIBPATH=["include/debug_draw_3d/addons/debug_draw_3d/libs"], RPATH=["$ORIGIN"])
+
 lib_filename = "{}{}{}{}".format(env.subst('$SHLIBPREFIX'), libname, suffix, env.subst('$SHLIBSUFFIX'))
 
 library = env.SharedLibrary(
@@ -58,7 +62,7 @@ library = env.SharedLibrary(
     source=sources,
 )
 
-copy = env.Install("{}/bin/{}/".format(projectdir, env["platform"]), library)
+copy = env.Install("{}/bin/{}/".format(projectdir + libprojectpath, env["platform"]), library)
 
 default_args = [library, copy]
 Default(*default_args)

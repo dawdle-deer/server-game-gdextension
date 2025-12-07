@@ -2,3 +2,6 @@
 	path = godot-cpp
 	url = https://github.com/godotengine/godot-cpp.git
 	branch = 4.3
+[submodule "include/debug_draw_3d"]
+	path = include/debug_draw_3d
+	url = https://github.com/DmitriySalnikov/godot_debug_draw_3d

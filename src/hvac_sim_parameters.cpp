@@ -1,6 +1,6 @@
 #include "hvac_sim_parameters.h"
 
-#include "godot_cpp/core/math.hpp"
+#include <godot_cpp/core/math.hpp>
 
 void HVACSimParameters::set_propagating(bool p_propagating) {
 	propagating = p_propagating;

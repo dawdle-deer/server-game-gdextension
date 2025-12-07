@@ -1,10 +1,12 @@
 #include "hvac_field.h"
 
-#include "godot_cpp/classes/physics_point_query_parameters3d.hpp"
-#include "godot_cpp/classes/physics_ray_query_parameters3d.hpp"
-#include "godot_cpp/classes/random_number_generator.hpp"
+#include <godot_cpp/classes/physics_point_query_parameters3d.hpp>
+#include <godot_cpp/classes/physics_ray_query_parameters3d.hpp>
+#include <godot_cpp/classes/random_number_generator.hpp>
 
-#include "hvac_field_sample.h"
+#include <hvac_field_sample.h>
+
+class DebugDraw3D;
 
 int HVACField::grid_pos_to_idx_v(Vector3i p_pos) {
 	return (p_pos.y * grid_size.x * grid_size.z) + (p_pos.z * grid_size.x) + p_pos.x;
@@ -249,29 +251,31 @@ Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 // const draw_center : bool = false
 // const draw_bounds_space : bool = false
 TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_size, Basis p_basis) {
-	AABB box_bounds = AABB(p_center - p_basis.xform(p_size * 0.5), p_size);
-	// if draw_debug_shapes:
-	// 	DebugDraw3D.scoped_config().set_thickness(0.004).set_center_brightness(0.8)
-	// 	if draw_bounds_space:
-	// 		DebugDraw3D.draw_box(box_bounds.position, Quaternion.IDENTITY, box_bounds.size, Color.GREEN)
-	// 	else:
-	// 		DebugDraw3D.draw_box(box_bounds.position, box_basis.get_rotation_quaternion(), box_bounds.size, Color.AQUAMARINE)
+	Basis world_to_box_basis = bounds_transform.basis * p_basis;
+	Vector3 box_origin = p_center - world_to_box_basis.xform(p_size * 0.5);
+	AABB box_bounds = AABB(box_origin, p_size);
+	// if (draw_debug_shapes) {
+	// 	debug_drawer->scoped_config()->set_thickness(0.004)->set_center_brightness(0.8);
+	// 	if (draw_in_bounds_space) {
+	// 		debug_drawer->draw_box(box_bounds.position, Quaternion(), box_bounds.size, Color(0, 1, 0));
+	// 	} else {
+	// 		debug_drawer->draw_box(box_bounds.position, world_to_box_basis.get_rotation_quaternion(), box_bounds.size, Color(0.491, 1, 0.83));
+	// 	}
+	// 	debug_drawer->draw_sphere(p_center, 0.03, Color(0.862, 0.078, 0.235));
+	// }
 	TypedArray<int> samples = TypedArray<int>();
-	Vector3 grid_center = pos_to_grid_unrounded(p_center);
-	// if draw_debug_shapes and draw_center:
-	// 	DebugDraw3D.draw_sphere(pos, 0.03, Color.CRIMSON)
-	// 	DebugDraw3D.draw_sphere(grid_to_world_pos_unrounded(grid_center), 0.08, Color.RED)
-	AABB grid_aligned_bounds = AABB(grid_center, Vector3(0.0f, 0.0f, 0.0f));
+	AABB grid_aligned_bounds = AABB(pos_to_grid_unrounded(p_center), Vector3(0.0f, 0.0f, 0.0f));
 	for (size_t i = 0; i < 8; i++) {
-		Vector3 corner_pos = p_basis.xform(box_bounds.get_endpoint(i));
-		Vector3i corner_pos_grid = Vector3i(pos_to_grid_unrounded(corner_pos).floor());
-		// if draw_debug_shapes:
-		// 	DebugDraw3D.draw_sphere(corner_pos_world, 0.05, Color.BLANCHED_ALMOND)
-		// 	DebugDraw3D.draw_sphere(grid_to_world_pos(corner_pos_grid), 0.05, Color.BLUE_VIOLET)
+		Vector3 corner_pos = world_to_box_basis.xform(box_bounds.get_endpoint(i));
+		Vector3 corner_pos_grid = pos_to_grid_unrounded(corner_pos).floor();
+		// if (draw_debug_shapes) {
+		// 	debug_drawer->draw_sphere(corner_pos, 0.03, Color(1, 0.921, 0.803));
+		// 	debug_drawer->draw_sphere(grid_to_pos(corner_pos_grid), 0.03, Color(0.541, 0.168, 0.886));
+		// }
 		for (size_t y = 0; y < 2; y++) {
 			for (size_t z = 0; z < 2; z++) {
 				for (size_t x = 0; x < 2; x++) {
-					grid_aligned_bounds = grid_aligned_bounds.expand(corner_pos_grid + Vector3i(x, y, z));
+					grid_aligned_bounds = grid_aligned_bounds.expand(corner_pos_grid + Vector3(x, y, z));
 				}
 			}
 		}
@@ -279,20 +283,24 @@ TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_s
 
 	Vector3i size_grid = Vector3i(grid_aligned_bounds.size.ceil());
 	Vector3i origin_grid = Vector3i(grid_aligned_bounds.position.floor());
-	// if draw_debug_shapes:
-	// 	DebugDraw3D.scoped_config().set_thickness(0.006).set_center_brightness(0.8)
-	// 	DebugDraw3D.draw_box(grid_to_world_pos(origin_grid), Quaternion.IDENTITY, Vector3(size_grid) * field_spacing, Color.DARK_BLUE)
+	// if (draw_debug_shapes) {
+	// 	debug_drawer->scoped_config()->set_thickness(0.006)->set_center_brightness(0.8);
+	// 	debug_drawer->draw_box(grid_to_pos(origin_grid), Quaternion(), Vector3(size_grid) * sample_spacing, Color(0, 0, 0.545));
+	// }
 	for (size_t y = 0; y <= size_grid.y; y++) {
 		for (size_t z = 0; z <= size_grid.z; z++) {
 			for (size_t x = 0; x <= size_grid.x; x++) {
 				Vector3i grid_pos = origin_grid + Vector3i(x, y, z);
 				Vector3 world_pos = grid_to_pos(grid_pos);
-				Vector3 box_pos = box_bounds.position + p_basis.xform_inv(world_pos - box_bounds.position);
-				// if draw_debug_shapes:
-				// 	if draw_bounds_space:
-				// 		DebugDraw3D.draw_sphere(box_pos, 0.03, Color.GREEN)
-				// 	else:
-				// 		DebugDraw3D.draw_sphere(world_pos, 0.05, Color.FOREST_GREEN)
+				Vector3 box_pos = box_origin + world_to_box_basis.xform_inv(world_pos - box_origin);
+				// if (draw_debug_shapes) {
+				// 	debug_drawer->scoped_config()->set_thickness(0.004)->set_center_brightness(0.8);
+				// 	if (draw_in_bounds_space) {
+				// 		debug_drawer->draw_sphere(box_pos, 0.03, Color(0, 1, 0));
+				// 	} else {
+				// 		debug_drawer->draw_sphere(world_pos, 0.05, Color(0.1333, 0.545, 0.1333));
+				// 	}
+				// }
 				if (!is_in_grid_bounds(grid_pos) || !box_bounds.has_point(box_pos)) {
 					continue;
 				}
@@ -342,11 +350,11 @@ Vector3 HVACField::pos_to_grid_unrounded(Vector3 p_position) {
 }
 
 Vector3 HVACField::grid_to_pos(Vector3i p_grid_pos) {
-	return bounds_transform.xform((p_grid_pos - grid_size * 0.5) * sample_spacing);
+	return bounds_transform.xform((Vector3(p_grid_pos) - Vector3(grid_size) * 0.5f) * sample_spacing);
 }
 
 Vector3 HVACField::unrounded_grid_to_pos(Vector3 p_grid_pos_unrounded) {
-	return bounds_transform.xform((p_grid_pos_unrounded - grid_size * 0.5) * sample_spacing);
+	return bounds_transform.xform((p_grid_pos_unrounded - Vector3(grid_size) * 0.5) * sample_spacing);
 }
 
 bool HVACField::is_in_grid_bounds(Vector3i p_grid_position) {
@@ -426,6 +434,30 @@ Transform3D HVACField::get_bounds_transform() const {
 	return bounds_transform;
 }
 
+void HVACField::set_draw_debug_shapes(bool p_draw_debug_shapes) {
+	draw_debug_shapes = p_draw_debug_shapes;
+}
+
+bool HVACField::get_draw_debug_shapes() const {
+	return draw_debug_shapes;
+}
+
+void HVACField::set_draw_in_bounds_space(bool p_draw_in_bounds_space) {
+	draw_in_bounds_space = p_draw_in_bounds_space;
+}
+
+bool HVACField::get_draw_in_bounds_space() const {
+	return draw_in_bounds_space;
+}
+
+// HVACField::HVACField() {
+// 	debug_drawer = memnew(DebugDraw3D);
+// }
+
+// HVACField::~HVACField() {
+// 	memdelete(debug_drawer);
+// }
+
 void HVACField::_bind_methods() {
 	// Useful methods
 	godot::ClassDB::bind_method(D_METHOD("grid_pos_to_idx_v", "grid_pos"), &HVACField::grid_pos_to_idx_v);
@@ -469,12 +501,19 @@ void HVACField::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("get_sim_parameters"), &HVACField::get_sim_parameters);
 	godot::ClassDB::bind_method(D_METHOD("set_bounds_transform", "bounds_transform"), &HVACField::set_bounds_transform);
 	godot::ClassDB::bind_method(D_METHOD("get_bounds_transform"), &HVACField::get_bounds_transform);
+	godot::ClassDB::bind_method(D_METHOD("set_draw_debug_shapes", "draw_debug_shapes"), &HVACField::set_draw_debug_shapes);
+	godot::ClassDB::bind_method(D_METHOD("get_draw_debug_shapes"), &HVACField::get_draw_debug_shapes);
+	godot::ClassDB::bind_method(D_METHOD("set_draw_in_bounds_space", "draw_in_bounds_space"), &HVACField::set_draw_in_bounds_space);
+	godot::ClassDB::bind_method(D_METHOD("get_draw_in_bounds_space"), &HVACField::get_draw_in_bounds_space);
 
 	// Properties
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "sample_spacing"), "set_sample_spacing", "get_sample_spacing");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_sample_mass"), "set_air_sample_mass", "get_air_sample_mass");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "sim_parameters", PROPERTY_HINT_RESOURCE_TYPE, "HVACSimParameters"), "set_sim_parameters", "get_sim_parameters");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "grid_size", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_grid_size", "get_grid_size");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "draw_debug_shapes"), "set_draw_debug_shapes", "get_draw_debug_shapes");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "draw_in_bounds_space"), "set_draw_in_bounds_space", "get_draw_in_bounds_space");
+	ADD_GROUP("Readouts", "");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_grid_size", "get_grid_size");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "samples", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_samples", "get_samples");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sample_grid", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sample_grid", "get_sample_grid");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "index_offsets_map", PROPERTY_HINT_ARRAY_TYPE, "int", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_index_offsets_map", "get_index_offsets_map");

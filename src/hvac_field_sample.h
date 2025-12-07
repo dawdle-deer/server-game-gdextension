@@ -1,8 +1,8 @@
 #pragma once
 
-#include "godot_cpp/classes/resource.hpp"
-#include "godot_cpp/classes/wrapped.hpp"
-#include "godot_cpp/variant/variant.hpp"
+#include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/wrapped.hpp>
+#include <godot_cpp/variant/variant.hpp>
 
 using namespace godot;
 

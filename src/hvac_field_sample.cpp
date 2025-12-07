@@ -1,6 +1,6 @@
 #include "hvac_field_sample.h"
 
-#include "godot_cpp/core/math.hpp"
+#include <godot_cpp/core/math.hpp>
 
 /// @brief One-way blend to single value
 /// @param p_temperature

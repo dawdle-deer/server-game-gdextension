@@ -1,14 +1,16 @@
 #pragma once
 
-#include "godot_cpp/classes/box_shape3d.hpp"
-#include "godot_cpp/classes/physics_direct_space_state3d.hpp"
-#include "godot_cpp/classes/resource.hpp"
-#include "godot_cpp/classes/wrapped.hpp"
-#include "godot_cpp/variant/variant.hpp"
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/physics_direct_space_state3d.hpp>
+#include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/wrapped.hpp>
+#include <godot_cpp/variant/variant.hpp>
 
-#include "heat_container.h"
-#include "hvac_field_sample.h"
-#include "hvac_sim_parameters.h"
+// #include <3d/debug_draw_3d.h>
+
+#include <heat_container.h>
+#include <hvac_field_sample.h>
+#include <hvac_sim_parameters.h>
 
 using namespace godot;
 
@@ -30,6 +32,9 @@ public:
 	TypedArray<Vector3> bounds_basis_axis_map;
 	TypedArray<float> sample_distance_map;
 	Transform3D bounds_transform = Transform3D();
+	bool draw_debug_shapes = false;
+	bool draw_in_bounds_space = false;
+	// DebugDraw3D *debug_drawer;
 
 	int grid_pos_to_idx_v(Vector3i p_pos);
 	int grid_pos_to_idx(int x, int y, int z);
@@ -73,7 +78,13 @@ public:
 	Ref<HVACSimParameters> get_sim_parameters() const;
 	void set_bounds_transform(Transform3D p_bounds_transform);
 	Transform3D get_bounds_transform() const;
+	void set_draw_debug_shapes(bool p_draw_debug_shapes);
+	bool get_draw_debug_shapes() const;
+	void set_draw_in_bounds_space(bool p_draw_in_bounds_space);
+	bool get_draw_in_bounds_space() const;
 
+	// HVACField();
+	// ~HVACField() override;
 	HVACField() = default;
 	~HVACField() override = default;
 };
