@@ -67,7 +67,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 			for (size_t x = 0; x < grid_size.x; x++) {
 				sample_grid[grid_pos_to_idx(x, y, z)] = nullptr;
 				// Make sure sample isn't inside a surface
-				Vector3 sample_pos_world = p_bounds_transform.xform(grid_to_pos(Vector3i(x, y, z)));
+				Vector3 sample_pos_world = grid_to_pos(Vector3i(x, y, z));
 				query->set_position(sample_pos_world);
 				if (!p_physics_space_state->intersect_point(query).is_empty()) {
 					//print("sample " + str(query.position) + " inside surface " + result[0]["collider"].get_parent().name + ", ignoring")
