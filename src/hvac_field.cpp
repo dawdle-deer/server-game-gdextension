@@ -18,6 +18,9 @@ int HVACField::pos_to_idx(Vector3 p_pos) {
 }
 
 void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_size, int p_statics_collision_mask, PhysicsDirectSpaceState3D *p_physics_space_state, float p_min_temp_variance, float p_max_temp_variance) {
+	ERR_FAIL_NULL(p_physics_space_state);
+	ERR_FAIL_NULL(sim_parameters);
+
 	print_line_rich("[u]Generating HVAC Field[/u]");
 
 	Ref<PhysicsPointQueryParameters3D> query = memnew(PhysicsPointQueryParameters3D);
@@ -125,22 +128,38 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 }
 
 void HVACField::propagate_air_samples(float p_delta) {
+	ERR_FAIL_NULL(sim_parameters);
+	if (samples.is_empty()) {
+		return;
+	}
+
 	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency;
 	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency;
 	int sample_count = samples.size();
-	int sample_update_count = Math::min(sim_parameters->air_sample_propagation_frame_limit, sample_count);
+	int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
 
-	for (size_t i = 0; i < sample_update_count; i++) {
-		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[(air_sample_iterator + i) % sample_count]);
+	for (size_t s = 0; s < sample_update_count; s++) {
+		int idx = (air_sample_iterator + s) % sample_count;
+		ERR_FAIL_COND(idx >= sample_count);
+		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[idx]);
+		if (sample.is_null()) {
+			continue;
+		}
+
 		float neighbor_avg = 0;
 		int n_cnt = 0;
 		for (size_t i = 0; i < 6; i++) {
 			if ((sample->neighbors_valid & (1 << i)) > 0) {
-				Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
-				if (n_sample.is_valid()) {
-					neighbor_avg += n_sample->temperature;
-					n_cnt++;
+				int idx = sample->grid_index + int(index_offsets_map[i]);
+				if (idx >= sample_count) {
+					continue;
 				}
+				Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[idx]);
+				if (n_sample.is_null()) {
+					continue;
+				}
+				neighbor_avg += n_sample->temperature;
+				n_cnt++;
 			}
 		}
 
@@ -148,10 +167,15 @@ void HVACField::propagate_air_samples(float p_delta) {
 			neighbor_avg /= n_cnt;
 			for (size_t i = 0; i < 6; i++) {
 				if ((sample->neighbors_valid & (1 << i)) > 0) {
-					Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
-					if (n_sample.is_valid()) {
-						n_sample->blend_to_temperature(neighbor_avg, air_propagation);
+					int idx = sample->grid_index + int(index_offsets_map[i]);
+					if (idx >= sample_count) {
+						continue;
 					}
+					Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[idx]);
+					if (n_sample.is_null()) {
+						continue;
+					}
+					n_sample->blend_to_temperature(neighbor_avg, air_propagation);
 				}
 			}
 			sample->blend_to_temperature(neighbor_avg, air_propagation);
@@ -165,8 +189,12 @@ void HVACField::propagate_air_samples(float p_delta) {
 }
 
 void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool distribute_evenly) {
-	TypedArray<int> sample_indices = get_grid_indices_in_box(p_box_center, p_box_size, p_box_basis);
+	ERR_FAIL_NULL(p_heat_container);
+	if (samples.is_empty()) {
+		return;
+	}
 
+	TypedArray<int> sample_indices = get_grid_indices_in_box(p_box_center, p_box_size, p_box_basis);
 	if (sample_indices.is_empty()) {
 		return;
 	}
@@ -177,6 +205,9 @@ void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_
 }
 
 void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount) {
+	if (samples.is_empty() || p_sample_indices.is_empty()) {
+		return;
+	}
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
 		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(sample_grid[p_sample_indices[i]]);
 		if (sample == nullptr) {
@@ -187,6 +218,10 @@ void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_tempe
 }
 
 void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool ignore_sample_count) {
+	ERR_FAIL_NULL(p_heat_container);
+	if (samples.is_empty() || p_sample_indices.is_empty()) {
+		return;
+	}
 	float temperature_cache = p_heat_container->temperature;
 	float mass_ratio = air_sample_mass / p_heat_container->mass;
 	float average_sample_temperature = get_average_temp(p_sample_indices);
@@ -200,6 +235,7 @@ Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 		return nullptr;
 	}
 	int index = grid_pos_to_idx_v(grid_pos);
+	ERR_FAIL_COND_V(index >= samples.size(), nullptr);
 	return cast_to<HVACFieldSample>(sample_grid[index]);
 }
 
@@ -213,7 +249,7 @@ TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_s
 	// 		DebugDraw3D.draw_box(box_bounds.position, Quaternion.IDENTITY, box_bounds.size, Color.GREEN)
 	// 	else:
 	// 		DebugDraw3D.draw_box(box_bounds.position, box_basis.get_rotation_quaternion(), box_bounds.size, Color.AQUAMARINE)
-	TypedArray<int> samples;
+	TypedArray<int> samples = TypedArray<int>();
 	Vector3 grid_center = pos_to_grid_unrounded(p_center);
 	// if draw_debug_shapes and draw_center:
 	// 	DebugDraw3D.draw_sphere(pos, 0.03, Color.CRIMSON)
@@ -265,10 +301,16 @@ TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_s
 }
 
 float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
+	if (samples.is_empty() || p_sample_indices.is_empty()) {
+		ERR_FAIL_NULL_V(sim_parameters, 0.0f);
+		return sim_parameters->ambient_temperature;
+	}
 	float sum = 0;
 	int n_cnt = 0;
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
-		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[p_sample_indices[i]]);
+		int idx = p_sample_indices[i];
+		ERR_FAIL_COND_V(idx >= samples.size(), 0.0f);
+		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[idx]);
 		if (sample.is_null()) {
 			continue;
 		}
@@ -279,6 +321,7 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 	if (n_cnt > 0) {
 		return sum / n_cnt;
 	} else {
+		ERR_FAIL_NULL_V(sim_parameters, 0.0f);
 		return sim_parameters->ambient_temperature;
 	}
 }
@@ -368,6 +411,14 @@ float HVACField::get_air_sample_mass() const {
 	return air_sample_mass;
 }
 
+void HVACField::set_sim_parameters(HVACSimParameters *p_sim_parameters) {
+	sim_parameters = p_sim_parameters;
+}
+
+HVACSimParameters *HVACField::get_sim_parameters() const {
+	return sim_parameters;
+}
+
 void HVACField::_bind_methods() {
 	// Useful methods
 	godot::ClassDB::bind_method(D_METHOD("grid_pos_to_idx_v", "grid_pos"), &HVACField::grid_pos_to_idx_v);
@@ -409,10 +460,13 @@ void HVACField::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("get_air_sample_mass"), &HVACField::get_air_sample_mass);
 	godot::ClassDB::bind_method(D_METHOD("set_sample_spacing", "sample_spacing"), &HVACField::set_sample_spacing);
 	godot::ClassDB::bind_method(D_METHOD("get_sample_spacing"), &HVACField::get_sample_spacing);
+	godot::ClassDB::bind_method(D_METHOD("set_sim_parameters", "sim_parameters"), &HVACField::set_sim_parameters);
+	godot::ClassDB::bind_method(D_METHOD("get_sim_parameters"), &HVACField::get_sim_parameters);
 
 	// Properties
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "sample_spacing"), "set_sample_spacing", "get_sample_spacing");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_sample_mass"), "set_air_sample_mass", "get_air_sample_mass");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "sim_parameters", PROPERTY_HINT_RESOURCE_TYPE, "HVACSimParameters"), "set_sim_parameters", "get_sim_parameters");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "grid_size", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_grid_size", "get_grid_size");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "samples", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_samples", "get_samples");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sample_grid", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sample_grid", "get_sample_grid");

@@ -55,11 +55,11 @@ float HVACSimParameters::get_element_propagation_speed() const {
 	return element_propagation_speed;
 }
 
-void HVACSimParameters::set_air_sample_propagation_frame_limit(int p_air_sample_propagation_frame_limit) {
-	air_sample_propagation_frame_limit = p_air_sample_propagation_frame_limit;
+void HVACSimParameters::set_air_propagation_limit(int p_air_propagation_limit) {
+	air_propagation_limit = p_air_propagation_limit;
 }
-int HVACSimParameters::get_air_sample_propagation_frame_limit() const {
-	return air_sample_propagation_frame_limit;
+int HVACSimParameters::get_air_propagation_limit() const {
+	return air_propagation_limit;
 }
 
 void HVACSimParameters::_bind_methods() {
@@ -87,5 +87,5 @@ void HVACSimParameters::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "efficiency"), "set_efficiency", "get_efficiency");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_propagation_speed"), "set_air_propagation_speed", "get_air_propagation_speed");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "element_propagation_speed"), "set_element_propagation_speed", "get_element_propagation_speed");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "air_sample_propagation_frame_limit"), "set_air_sample_propagation_frame_limit", "get_air_sample_propagation_frame_limit");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "air_propagation_limit"), "set_air_propagation_limit", "get_air_propagation_limit");
 }

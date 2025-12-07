@@ -71,6 +71,8 @@ public:
 	TypedArray<float> get_sample_distance_map() const;
 	void set_air_sample_mass(float p_air_sample_mass);
 	float get_air_sample_mass() const;
+	void set_sim_parameters(HVACSimParameters *p_sim_parameters);
+	HVACSimParameters *get_sim_parameters() const;
 
 	HVACField() = default;
 	~HVACField() override = default;
