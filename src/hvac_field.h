@@ -23,8 +23,8 @@ protected:
 public:
 	Vector3i grid_size;
 	Vector3 sample_spacing;
-	TypedArray<HVACFieldSample *> samples;
-	TypedArray<HVACFieldSample *> sample_grid;
+	TypedArray<HVACFieldSample> samples;
+	TypedArray<HVACFieldSample> sample_grid;
 	TypedArray<int> index_offsets_map;
 	TypedArray<Vector3> bounds_basis_axis_map;
 	TypedArray<float> sample_distance_map;
@@ -42,7 +42,7 @@ public:
 	void blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount);
 	void blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool p_ignore_sample_count = false);
 
-	HVACFieldSample *get_sample_at(Vector3 p_position);
+	Ref<HVACFieldSample> get_sample_at(Vector3 p_position);
 	TypedArray<int> get_grid_indices_in_box(Vector3 p_center, Vector3 p_size, Basis p_basis);
 	float get_average_temp(TypedArray<int> p_sample_indices);
 
@@ -59,10 +59,10 @@ public:
 	Vector3i get_grid_size() const;
 	void set_sample_spacing(Vector3 p_sample_spacing);
 	Vector3 get_sample_spacing() const;
-	void set_samples(TypedArray<HVACFieldSample *> p_samples);
-	TypedArray<HVACFieldSample *> get_samples() const;
-	void set_sample_grid(TypedArray<HVACFieldSample *> p_sample_grid);
-	TypedArray<HVACFieldSample *> get_sample_grid() const;
+	void set_samples(TypedArray<HVACFieldSample> p_samples);
+	TypedArray<HVACFieldSample> get_samples() const;
+	void set_sample_grid(TypedArray<HVACFieldSample> p_sample_grid);
+	TypedArray<HVACFieldSample> get_sample_grid() const;
 	void set_index_offsets_map(TypedArray<int> p_index_offsets_map);
 	TypedArray<int> get_index_offsets_map() const;
 	void set_bounds_basis_axis_map(TypedArray<Vector3> p_bounds_basis_axis_map);

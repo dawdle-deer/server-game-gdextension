@@ -24,7 +24,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 	query->set_collision_mask(p_statics_collision_mask);
 	Ref<PhysicsRayQueryParameters3D> n_query = PhysicsRayQueryParameters3D::create(Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), p_statics_collision_mask);
 	Ref<PhysicsRayQueryParameters3D> up_query = PhysicsRayQueryParameters3D::create(Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f), p_statics_collision_mask);
-	HVACFieldSample *cur_sample;
+	Ref<HVACFieldSample> cur_sample;
 
 	grid_size = (p_bounds_size / sample_spacing).ceil();
 	print_line_rich("\tfield size: ", grid_size);
@@ -99,7 +99,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 				}
 				Ref<RandomNumberGenerator> rand_gen = memnew(RandomNumberGenerator);
 				// Generate / save sample data
-				cur_sample = memnew(HVACFieldSample);
+				cur_sample = Ref<HVACFieldSample>(memnew(HVACFieldSample));
 				cur_sample->grid_index = grid_pos_to_idx(x, y, z);
 				cur_sample->position = sample_pos_world;
 				cur_sample->temperature = rand_gen->randf_range(p_min_temp_variance, p_max_temp_variance) + sim_parameters->ambient_temperature;
@@ -131,13 +131,13 @@ void HVACField::propagate_air_samples(float p_delta) {
 	int sample_update_count = Math::min(sim_parameters->air_sample_propagation_frame_limit, sample_count);
 
 	for (size_t i = 0; i < sample_update_count; i++) {
-		HVACFieldSample *sample = cast_to<HVACFieldSample>(samples[(air_sample_iterator + i) % sample_count]);
+		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[(air_sample_iterator + i) % sample_count]);
 		float neighbor_avg = 0;
 		int n_cnt = 0;
 		for (size_t i = 0; i < 6; i++) {
 			if ((sample->neighbors_valid & (1 << i)) > 0) {
-				HVACFieldSample *n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
-				if (n_sample) {
+				Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
+				if (n_sample.is_valid()) {
 					neighbor_avg += n_sample->temperature;
 					n_cnt++;
 				}
@@ -148,8 +148,8 @@ void HVACField::propagate_air_samples(float p_delta) {
 			neighbor_avg /= n_cnt;
 			for (size_t i = 0; i < 6; i++) {
 				if ((sample->neighbors_valid & (1 << i)) > 0) {
-					HVACFieldSample *n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
-					if (n_sample) {
+					Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[sample->grid_index + int(index_offsets_map[i])]);
+					if (n_sample.is_valid()) {
 						n_sample->blend_to_temperature(neighbor_avg, air_propagation);
 					}
 				}
@@ -178,7 +178,7 @@ void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_
 
 void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount) {
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
-		HVACFieldSample *sample = cast_to<HVACFieldSample>(sample_grid[p_sample_indices[i]]);
+		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(sample_grid[p_sample_indices[i]]);
 		if (sample == nullptr) {
 			continue;
 		}
@@ -194,7 +194,7 @@ void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContain
 	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount / mass_ratio * (ignore_sample_count ? 1.0 : p_sample_indices.size()), true);
 }
 
-HVACFieldSample *HVACField::get_sample_at(Vector3 p_position) {
+Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 	Vector3i grid_pos = pos_to_grid(p_position);
 	if (!is_in_grid_bounds(grid_pos)) {
 		return nullptr;
@@ -268,8 +268,8 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 	float sum = 0;
 	int n_cnt = 0;
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
-		HVACFieldSample *sample = cast_to<HVACFieldSample>(samples[p_sample_indices[i]]);
-		if (!sample) {
+		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[p_sample_indices[i]]);
+		if (sample.is_null()) {
 			continue;
 		}
 		sum += sample->temperature;
@@ -325,17 +325,17 @@ Vector3 HVACField::get_sample_spacing() const {
 	return sample_spacing;
 }
 
-void HVACField::set_samples(TypedArray<HVACFieldSample *> p_samples) {
+void HVACField::set_samples(TypedArray<HVACFieldSample> p_samples) {
 	samples = p_samples;
 }
-TypedArray<HVACFieldSample *> HVACField::get_samples() const {
+TypedArray<HVACFieldSample> HVACField::get_samples() const {
 	return samples;
 }
 
-void HVACField::set_sample_grid(TypedArray<HVACFieldSample *> p_sample_grid) {
+void HVACField::set_sample_grid(TypedArray<HVACFieldSample> p_sample_grid) {
 	sample_grid = p_sample_grid;
 }
-TypedArray<HVACFieldSample *> HVACField::get_sample_grid() const {
+TypedArray<HVACFieldSample> HVACField::get_sample_grid() const {
 	return sample_grid;
 }
 
