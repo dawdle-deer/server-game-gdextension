@@ -23,13 +23,13 @@ protected:
 public:
 	Vector3i grid_size;
 	Vector3 sample_spacing;
+	Ref<HVACSimParameters> sim_parameters;
 	TypedArray<HVACFieldSample> samples;
 	TypedArray<HVACFieldSample> sample_grid;
 	TypedArray<int> index_offsets_map;
 	TypedArray<Vector3> bounds_basis_axis_map;
 	TypedArray<float> sample_distance_map;
-	float air_sample_mass;
-	HVACSimParameters *sim_parameters;
+	Transform3D bounds_transform = Transform3D();
 
 	int grid_pos_to_idx_v(Vector3i p_pos);
 	int grid_pos_to_idx(int x, int y, int z);
@@ -69,10 +69,10 @@ public:
 	TypedArray<Vector3> get_bounds_basis_axis_map() const;
 	void set_sample_distance_map(TypedArray<float> p_sample_distance_map);
 	TypedArray<float> get_sample_distance_map() const;
-	void set_air_sample_mass(float p_air_sample_mass);
-	float get_air_sample_mass() const;
-	void set_sim_parameters(HVACSimParameters *p_sim_parameters);
-	HVACSimParameters *get_sim_parameters() const;
+	void set_sim_parameters(Ref<HVACSimParameters> p_sim_parameters);
+	Ref<HVACSimParameters> get_sim_parameters() const;
+	void set_bounds_transform(Transform3D p_bounds_transform);
+	Transform3D get_bounds_transform() const;
 
 	HVACField() = default;
 	~HVACField() override = default;

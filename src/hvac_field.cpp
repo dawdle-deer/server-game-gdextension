@@ -32,6 +32,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 	grid_size = (p_bounds_size / sample_spacing).ceil();
 	print_line_rich("\tfield size: ", grid_size);
 
+	bounds_transform = p_bounds_transform;
 	Basis bounds_basis = p_bounds_transform.get_basis();
 
 	sample_distance_map = TypedArray<float>();
@@ -136,12 +137,14 @@ void HVACField::propagate_air_samples(float p_delta) {
 	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency;
 	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency;
 	int sample_count = samples.size();
-	int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
+	int sample_update_count = sample_count;
+	// int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
 
 	for (size_t s = 0; s < sample_update_count; s++) {
-		int idx = (air_sample_iterator + s) % sample_count;
-		ERR_FAIL_COND(idx >= sample_count);
-		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[idx]);
+		// int idx = (air_sample_iterator + s) % sample_count;
+		int idx = s;
+		ERR_FAIL_COND(idx >= sample_count || idx < 0);
+		Ref<HVACFieldSample> sample = samples[idx];
 		if (sample.is_null()) {
 			continue;
 		}
@@ -150,11 +153,11 @@ void HVACField::propagate_air_samples(float p_delta) {
 		int n_cnt = 0;
 		for (size_t i = 0; i < 6; i++) {
 			if ((sample->neighbors_valid & (1 << i)) > 0) {
-				int idx = sample->grid_index + int(index_offsets_map[i]);
-				if (idx >= sample_count) {
+				int index = sample->grid_index + int(index_offsets_map[i]);
+				if (index >= sample_count || index < 0) {
 					continue;
 				}
-				Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[idx]);
+				Ref<HVACFieldSample> n_sample = samples[index];
 				if (n_sample.is_null()) {
 					continue;
 				}
@@ -167,11 +170,11 @@ void HVACField::propagate_air_samples(float p_delta) {
 			neighbor_avg /= n_cnt;
 			for (size_t i = 0; i < 6; i++) {
 				if ((sample->neighbors_valid & (1 << i)) > 0) {
-					int idx = sample->grid_index + int(index_offsets_map[i]);
-					if (idx >= sample_count) {
+					int index = sample->grid_index + int(index_offsets_map[i]);
+					if (index >= sample_count || index < 0) {
 						continue;
 					}
-					Ref<HVACFieldSample> n_sample = cast_to<HVACFieldSample>(samples[idx]);
+					Ref<HVACFieldSample> n_sample = samples[index];
 					if (n_sample.is_null()) {
 						continue;
 					}
@@ -185,7 +188,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 		}
 	}
 
-	air_sample_iterator += sample_update_count;
+	// air_sample_iterator += sample_update_count;
 }
 
 void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool distribute_evenly) {
@@ -209,7 +212,10 @@ void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_tempe
 		return;
 	}
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
-		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(sample_grid[p_sample_indices[i]]);
+		if (int(p_sample_indices[i]) >= sample_grid.size()) {
+			continue;
+		}
+		Ref<HVACFieldSample> sample = sample_grid[p_sample_indices[i]];
 		if (sample == nullptr) {
 			continue;
 		}
@@ -219,11 +225,12 @@ void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_tempe
 
 void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool ignore_sample_count) {
 	ERR_FAIL_NULL(p_heat_container);
+	ERR_FAIL_NULL(sim_parameters);
 	if (samples.is_empty() || p_sample_indices.is_empty()) {
 		return;
 	}
 	float temperature_cache = p_heat_container->temperature;
-	float mass_ratio = air_sample_mass / p_heat_container->mass;
+	float mass_ratio = sim_parameters->air_sample_mass / p_heat_container->mass;
 	float average_sample_temperature = get_average_temp(p_sample_indices);
 	blend_samples_to(p_sample_indices, temperature_cache, p_blend_amount * mass_ratio);
 	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount / mass_ratio * (ignore_sample_count ? 1.0 : p_sample_indices.size()), true);
@@ -236,7 +243,7 @@ Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 	}
 	int index = grid_pos_to_idx_v(grid_pos);
 	ERR_FAIL_COND_V(index >= samples.size(), nullptr);
-	return cast_to<HVACFieldSample>(sample_grid[index]);
+	return sample_grid[index];
 }
 
 // const draw_center : bool = false
@@ -309,8 +316,8 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 	int n_cnt = 0;
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
 		int idx = p_sample_indices[i];
-		ERR_FAIL_COND_V(idx >= samples.size(), 0.0f);
-		Ref<HVACFieldSample> sample = cast_to<HVACFieldSample>(samples[idx]);
+		ERR_FAIL_COND_V(idx >= samples.size() || idx < 0, 0.0f);
+		Ref<HVACFieldSample> sample = samples[idx];
 		if (sample.is_null()) {
 			continue;
 		}
@@ -327,19 +334,19 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 }
 
 Vector3i HVACField::pos_to_grid(Vector3 p_position) {
-	return Vector3i((p_position / sample_spacing + grid_size * 0.5).round());
+	return Vector3i((bounds_transform.affine_inverse().xform(p_position) / sample_spacing + grid_size * 0.5).round());
 }
 
 Vector3 HVACField::pos_to_grid_unrounded(Vector3 p_position) {
-	return p_position / sample_spacing + grid_size * 0.5;
+	return bounds_transform.affine_inverse().xform(p_position) / sample_spacing + grid_size * 0.5;
 }
 
 Vector3 HVACField::grid_to_pos(Vector3i p_grid_pos) {
-	return (p_grid_pos - grid_size * 0.5) * sample_spacing;
+	return bounds_transform.xform((p_grid_pos - grid_size * 0.5) * sample_spacing);
 }
 
 Vector3 HVACField::unrounded_grid_to_pos(Vector3 p_grid_pos_unrounded) {
-	return (p_grid_pos_unrounded - grid_size * 0.5) * sample_spacing;
+	return bounds_transform.xform((p_grid_pos_unrounded - grid_size * 0.5) * sample_spacing);
 }
 
 bool HVACField::is_in_grid_bounds(Vector3i p_grid_position) {
@@ -403,20 +410,20 @@ TypedArray<float> HVACField::get_sample_distance_map() const {
 	return sample_distance_map;
 }
 
-void HVACField::set_air_sample_mass(float p_air_sample_mass) {
-	air_sample_mass = p_air_sample_mass;
-}
-
-float HVACField::get_air_sample_mass() const {
-	return air_sample_mass;
-}
-
-void HVACField::set_sim_parameters(HVACSimParameters *p_sim_parameters) {
+void HVACField::set_sim_parameters(Ref<HVACSimParameters> p_sim_parameters) {
 	sim_parameters = p_sim_parameters;
 }
 
-HVACSimParameters *HVACField::get_sim_parameters() const {
+Ref<HVACSimParameters> HVACField::get_sim_parameters() const {
 	return sim_parameters;
+}
+
+void HVACField::set_bounds_transform(Transform3D p_bounds_transform) {
+	bounds_transform = p_bounds_transform;
+}
+
+Transform3D HVACField::get_bounds_transform() const {
+	return bounds_transform;
 }
 
 void HVACField::_bind_methods() {
@@ -456,12 +463,12 @@ void HVACField::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("get_bounds_basis_axis_map"), &HVACField::get_bounds_basis_axis_map);
 	godot::ClassDB::bind_method(D_METHOD("set_sample_distance_map", "sample_distance_map"), &HVACField::set_sample_distance_map);
 	godot::ClassDB::bind_method(D_METHOD("get_sample_distance_map"), &HVACField::get_sample_distance_map);
-	godot::ClassDB::bind_method(D_METHOD("set_air_sample_mass", "air_sample_mass"), &HVACField::set_air_sample_mass);
-	godot::ClassDB::bind_method(D_METHOD("get_air_sample_mass"), &HVACField::get_air_sample_mass);
 	godot::ClassDB::bind_method(D_METHOD("set_sample_spacing", "sample_spacing"), &HVACField::set_sample_spacing);
 	godot::ClassDB::bind_method(D_METHOD("get_sample_spacing"), &HVACField::get_sample_spacing);
 	godot::ClassDB::bind_method(D_METHOD("set_sim_parameters", "sim_parameters"), &HVACField::set_sim_parameters);
 	godot::ClassDB::bind_method(D_METHOD("get_sim_parameters"), &HVACField::get_sim_parameters);
+	godot::ClassDB::bind_method(D_METHOD("set_bounds_transform", "bounds_transform"), &HVACField::set_bounds_transform);
+	godot::ClassDB::bind_method(D_METHOD("get_bounds_transform"), &HVACField::get_bounds_transform);
 
 	// Properties
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "sample_spacing"), "set_sample_spacing", "get_sample_spacing");
@@ -473,4 +480,5 @@ void HVACField::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "index_offsets_map", PROPERTY_HINT_ARRAY_TYPE, "int", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_index_offsets_map", "get_index_offsets_map");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "bounds_basis_axis_map", PROPERTY_HINT_ARRAY_TYPE, "Vector3", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_bounds_basis_axis_map", "get_bounds_basis_axis_map");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sample_distance_map", PROPERTY_HINT_ARRAY_TYPE, "float", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sample_distance_map", "get_sample_distance_map");
+	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "bounds_transform", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_bounds_transform", "get_bounds_transform");
 }

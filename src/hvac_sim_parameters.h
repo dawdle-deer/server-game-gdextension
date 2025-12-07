@@ -22,6 +22,7 @@ public:
 	float air_propagation_speed = 1.0f;
 	float element_propagation_speed = 2.0f;
 	int air_propagation_limit = 5000;
+	float air_sample_mass = 0.01f;
 
 	// setter/getters
 
@@ -48,6 +49,9 @@ public:
 
 	void set_air_propagation_limit(int p_air_propagation_limit);
 	int get_air_propagation_limit() const;
+
+	void set_air_sample_mass(float p_air_sample_mass);
+	float get_air_sample_mass() const;
 
 	HVACSimParameters() = default;
 	~HVACSimParameters() override = default;
