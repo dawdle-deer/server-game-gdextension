@@ -6,7 +6,7 @@ from methods import print_error
 
 
 libname = "ServerGameExt"
-projectdir = "demo"
+projectdir = "C:/Users/Dawdle/Desktop/Home/Gamedev/Godot/server-game/gdext/fauna-lib"
 
 localEnv = Environment(tools=["default"], PLATFORM="")
 
