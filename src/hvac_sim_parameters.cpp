@@ -88,6 +88,8 @@ void HVACSimParameters::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("get_ambient_temperature"), &HVACSimParameters::get_ambient_temperature);
 	godot::ClassDB::bind_method(D_METHOD("set_air_sample_mass", "air_sample_mass"), &HVACSimParameters::set_air_sample_mass);
 	godot::ClassDB::bind_method(D_METHOD("get_air_sample_mass"), &HVACSimParameters::get_air_sample_mass);
+	godot::ClassDB::bind_method(D_METHOD("set_air_propagation_limit", "air_propagation_limit"), &HVACSimParameters::set_air_propagation_limit);
+	godot::ClassDB::bind_method(D_METHOD("get_air_propagation_limit"), &HVACSimParameters::get_air_propagation_limit);
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "propagating"), "set_propagating", "get_propagating");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cooling"), "set_cooling", "get_cooling");
@@ -98,4 +100,5 @@ void HVACSimParameters::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_propagation_speed"), "set_air_propagation_speed", "get_air_propagation_speed");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "element_propagation_speed"), "set_element_propagation_speed", "get_element_propagation_speed");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "air_propagation_limit"), "set_air_propagation_limit", "get_air_propagation_limit");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_sample_mass"), "set_air_sample_mass", "get_air_sample_mass");
 }
