@@ -32,6 +32,8 @@ public:
 	TypedArray<Vector3> bounds_basis_axis_map;
 	TypedArray<float> sample_distance_map;
 	Transform3D bounds_transform = Transform3D();
+	Transform3D inv_bounds_transform = Transform3D();
+	Vector3 grid_half_size;
 	bool draw_debug_shapes = false;
 	bool draw_in_bounds_space = false;
 	// DebugDraw3D *debug_drawer;
@@ -48,6 +50,7 @@ public:
 	void blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool p_ignore_sample_count = false);
 
 	Ref<HVACFieldSample> get_sample_at(Vector3 p_position);
+	AABB get_grid_bounding_aabb(Vector3 p_center, AABB p_bounds, Basis p_basis);
 	TypedArray<int> get_grid_indices_in_box(Vector3 p_center, Vector3 p_size, Basis p_basis);
 	float get_average_temp(TypedArray<int> p_sample_indices);
 
