@@ -24,6 +24,7 @@ protected:
 
 public:
 	Vector3i grid_size;
+	Vector3 grid_half_size;
 	Vector3 sample_spacing;
 	Ref<HVACSimParameters> sim_parameters;
 	TypedArray<HVACFieldSample> samples;
@@ -33,9 +34,9 @@ public:
 	TypedArray<float> sample_distance_map;
 	Transform3D bounds_transform = Transform3D();
 	Transform3D inv_bounds_transform = Transform3D();
-	Vector3 grid_half_size;
 	bool draw_debug_shapes = false;
 	bool draw_in_bounds_space = false;
+	int max_sample_idx;
 	// DebugDraw3D *debug_drawer;
 
 	int grid_pos_to_idx_v(Vector3i p_pos);

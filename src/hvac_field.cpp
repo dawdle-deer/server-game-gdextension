@@ -147,7 +147,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 	for (size_t s = 0; s < sample_update_count; s++) {
 		// int idx = (air_sample_iterator + s) % sample_count;
 		int idx = s;
-		ERR_FAIL_COND(idx >= sample_count || idx < 0);
+		ERR_FAIL_INDEX(idx, sample_count);
 		Ref<HVACFieldSample> sample = samples[idx];
 		if (sample.is_null()) {
 			continue;
@@ -216,7 +216,7 @@ void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_tempe
 		return;
 	}
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
-		if (int(p_sample_indices[i]) >= sample_grid.size()) {
+		if (int(p_sample_indices[i]) >= max_sample_idx) {
 			continue;
 		}
 		Ref<HVACFieldSample> sample = sample_grid[p_sample_indices[i]];
@@ -246,7 +246,7 @@ Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 		return nullptr;
 	}
 	int index = grid_pos_to_idx_v(grid_pos);
-	ERR_FAIL_COND_V(index >= samples.size(), nullptr);
+	ERR_FAIL_INDEX_V(index, max_sample_idx, nullptr);
 	return sample_grid[index];
 }
 
@@ -333,8 +333,8 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 	int n_cnt = 0;
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
 		int idx = p_sample_indices[i];
-		ERR_FAIL_COND_V(idx >= samples.size() || idx < 0, 0.0f);
-		Ref<HVACFieldSample> sample = samples[idx];
+		ERR_FAIL_INDEX_V(idx, max_sample_idx, 0.0f);
+		Ref<HVACFieldSample> sample = sample_grid[idx];
 		if (sample.is_null()) {
 			continue;
 		}
@@ -379,6 +379,7 @@ bool HVACField::is_in_grid_bounds(Vector3i p_grid_position) {
 
 void HVACField::set_grid_size(Vector3i p_grid_size) {
 	grid_size = p_grid_size;
+	grid_half_size = Vector3(grid_size) * 0.5f;
 }
 Vector3i HVACField::get_grid_size() const {
 	return grid_size;
@@ -401,6 +402,7 @@ TypedArray<HVACFieldSample> HVACField::get_samples() const {
 
 void HVACField::set_sample_grid(TypedArray<HVACFieldSample> p_sample_grid) {
 	sample_grid = p_sample_grid;
+	max_sample_idx = sample_grid.size();
 }
 TypedArray<HVACFieldSample> HVACField::get_sample_grid() const {
 	return sample_grid;
@@ -437,6 +439,7 @@ Ref<HVACSimParameters> HVACField::get_sim_parameters() const {
 
 void HVACField::set_bounds_transform(Transform3D p_bounds_transform) {
 	bounds_transform = p_bounds_transform;
+	inv_bounds_transform = bounds_transform.affine_inverse();
 }
 
 Transform3D HVACField::get_bounds_transform() const {
