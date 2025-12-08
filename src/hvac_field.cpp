@@ -176,7 +176,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 	air_sample_iterator += sample_update_count;
 }
 
-void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool distribute_evenly) {
+void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool p_distribute_evenly) {
 	ERR_FAIL_NULL(p_heat_container);
 	if (samples.is_empty()) {
 		return;
@@ -188,19 +188,19 @@ void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_
 	}
 
 	float blend_amount = Math::clamp(p_delta * sim_parameters->element_propagation_speed * sim_parameters->efficiency, 0.0f, 1.0f);
-	blend_samples_with(sample_indices, p_heat_container, blend_amount, !distribute_evenly);
+	blend_samples_with(sample_indices, p_heat_container, blend_amount, p_distribute_evenly);
 }
 
-void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool ignore_sample_count) {
+void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool p_distribute_evenly) {
 	ERR_FAIL_NULL(p_heat_container);
 	ERR_FAIL_NULL(sim_parameters);
 	if (samples.is_empty() || p_sample_indices.is_empty()) {
 		return;
 	}
 	float average_sample_temperature = get_average_temp(p_sample_indices);
-	float count_factor = ignore_sample_count ? 1.0 : p_sample_indices.size();
+	float count_factor = p_distribute_evenly ? float(p_sample_indices.size()) : 1.0f;
 	float mass_ratio = p_heat_container->mass / sim_parameters->air_sample_mass;
-	blend_samples_to(p_sample_indices, p_heat_container->temperature, p_blend_amount * mass_ratio / count_factor);
+	blend_samples_to(p_sample_indices, p_heat_container->temperature, Math::clamp(p_blend_amount * mass_ratio, 0.0f, 1.0f) / count_factor);
 	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount * count_factor * p_heat_container->mass / mass_ratio);
 }
 
