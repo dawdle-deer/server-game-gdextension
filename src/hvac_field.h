@@ -1,6 +1,8 @@
 #pragma once
 
+#include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/immediate_mesh.hpp>
 #include <godot_cpp/classes/physics_direct_space_state3d.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/wrapped.hpp>
@@ -30,8 +32,6 @@ public:
 	TypedArray<HVACFieldSample> samples;
 	TypedArray<HVACFieldSample> sample_grid;
 	TypedArray<int> index_offsets_map;
-	TypedArray<Vector3> bounds_basis_axis_map;
-	TypedArray<float> sample_distance_map;
 	Transform3D bounds_transform = Transform3D();
 	Transform3D inv_bounds_transform = Transform3D();
 	bool draw_debug_shapes = false;
@@ -62,6 +62,8 @@ public:
 
 	bool is_in_grid_bounds(Vector3i p_grid_position);
 
+	//void update_debug_meshes(Ref<ImmediateMesh> p_temperature_mesh, Ref<ImmediateMesh> p_neighbor_mesh);
+
 	// setter/getters
 
 	void set_grid_size(Vector3i p_grid_size);
@@ -74,10 +76,6 @@ public:
 	TypedArray<HVACFieldSample> get_sample_grid() const;
 	void set_index_offsets_map(TypedArray<int> p_index_offsets_map);
 	TypedArray<int> get_index_offsets_map() const;
-	void set_bounds_basis_axis_map(TypedArray<Vector3> p_bounds_basis_axis_map);
-	TypedArray<Vector3> get_bounds_basis_axis_map() const;
-	void set_sample_distance_map(TypedArray<float> p_sample_distance_map);
-	TypedArray<float> get_sample_distance_map() const;
 	void set_sim_parameters(Ref<HVACSimParameters> p_sim_parameters);
 	Ref<HVACSimParameters> get_sim_parameters() const;
 	void set_bounds_transform(Transform3D p_bounds_transform);

@@ -19,6 +19,14 @@ int HVACField::pos_to_idx(Vector3 p_pos) {
 	return grid_pos_to_idx_v(pos_to_grid(p_pos));
 }
 
+const Vector3i axis_dirs[6] = {
+	Vector3i(0, 1, 0),
+	Vector3i(0, -1, 0),
+	Vector3i(1, 0, 0),
+	Vector3i(-1, 0, 0),
+	Vector3i(0, 0, 1),
+	Vector3i(0, 0, -1)
+};
 void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_size, int p_statics_collision_mask, PhysicsDirectSpaceState3D *p_physics_space_state, float p_min_temp_variance, float p_max_temp_variance) {
 	ERR_FAIL_NULL(p_physics_space_state);
 	ERR_FAIL_NULL(sim_parameters);
@@ -38,22 +46,6 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 	bounds_transform = p_bounds_transform;
 	inv_bounds_transform = p_bounds_transform.affine_inverse();
 	Basis bounds_basis = p_bounds_transform.get_basis();
-
-	sample_distance_map = TypedArray<float>();
-	sample_distance_map.push_back(sample_spacing.y);
-	sample_distance_map.push_back(sample_spacing.y);
-	sample_distance_map.push_back(sample_spacing.z);
-	sample_distance_map.push_back(sample_spacing.z);
-	sample_distance_map.push_back(sample_spacing.x);
-	sample_distance_map.push_back(sample_spacing.x);
-
-	bounds_basis_axis_map = TypedArray<Vector3>();
-	bounds_basis_axis_map.push_back(bounds_basis[0]);
-	bounds_basis_axis_map.push_back(-bounds_basis[0]);
-	bounds_basis_axis_map.push_back(bounds_basis[1]);
-	bounds_basis_axis_map.push_back(-bounds_basis[1]);
-	bounds_basis_axis_map.push_back(bounds_basis[2]);
-	bounds_basis_axis_map.push_back(-bounds_basis[2]);
 
 	index_offsets_map = TypedArray<int>();
 	index_offsets_map.push_back(grid_size.x * grid_size.z);
@@ -91,7 +83,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 				}
 				bool wall_missed = false;
 				for (size_t i = 0; i < 6; i++) {
-					up_query->set_to(sample_pos_world + Vector3(bounds_basis_axis_map[i]) * 60);
+					up_query->set_to(sample_pos_world + bounds_basis.xform(axis_dirs[i]) * 60);
 					if (p_physics_space_state->intersect_ray(up_query).is_empty()) {
 						wall_missed = true;
 						break;
@@ -117,7 +109,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 				// TODO : perform this step later to avoid up query and halve neighbor checks ?
 				n_query->set_from(sample_pos_world);
 				for (size_t i = 0; i < 6; i++) {
-					Vector3 neighbor_pos = sample_pos_world + Vector3(bounds_basis_axis_map[i]) * float(sample_distance_map[i]);
+					Vector3 neighbor_pos = grid_to_pos(Vector3i(x, y, z) + axis_dirs[i]);
 					n_query->set_to(neighbor_pos);
 					up_query->set_from(neighbor_pos);
 					up_query->set_to(neighbor_pos + Vector3(0.0f, 15.0f, 0.0f));
@@ -141,12 +133,12 @@ void HVACField::propagate_air_samples(float p_delta) {
 	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency;
 	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency * 0.001f;
 	int sample_count = samples.size();
-	int sample_update_count = sample_count;
-	// int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
+	//int sample_update_count = sample_count;
+	int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
 
 	for (size_t s = 0; s < sample_update_count; s++) {
-		// int idx = (air_sample_iterator + s) % sample_count;
-		int idx = s;
+		int idx = (air_sample_iterator + s) % sample_count;
+		//int idx = s;
 		ERR_FAIL_INDEX(idx, sample_count);
 		Ref<HVACFieldSample> sample = samples[idx];
 		if (sample.is_null()) {
@@ -180,7 +172,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 		}
 	}
 
-	// air_sample_iterator += sample_update_count;
+	air_sample_iterator += sample_update_count;
 }
 
 void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool distribute_evenly) {
@@ -348,6 +340,102 @@ bool HVACField::is_in_grid_bounds(Vector3i p_grid_position) {
 			p_grid_position.y < grid_size.y &&
 			p_grid_position.z < grid_size.z;
 }
+/*
+const Color axis_colors[6] = {
+	Color(0, 1, 0), Color(1, 1, 0), Color(0, 0, 1), Color(0, 1, 1), Color(1, 0, 0), Color(1, 0, 1)
+};
+void HVACField::generate_meshes() {
+
+	var im : ImmediateMesh
+	im = field_mesh.mesh as ImmediateMesh
+	im.clear_surfaces()
+	im.surface_begin(Mesh.PRIMITIVE_POINTS)
+	var n : ImmediateMesh
+	n = field_neighbor_mesh.mesh as ImmediateMesh
+	n.clear_surfaces()
+	n.surface_begin(Mesh.PRIMITIVE_POINTS)
+	temperature_color_array.clear()
+	neighbor_color_array.clear()
+	for sample in field.samples:
+		for i in range(6):
+			if (sample.neighbors_valid & (1 << i)) > 0:
+				n.surface_set_color(cols[i])
+				neighbor_color_array.push_back(cols[i])
+			else:
+				n.surface_set_color(Color.BLACK)
+				neighbor_color_array.push_back(Color.BLACK)
+			n.surface_add_vertex(field_mesh.to_local(sample.position) + field.bounds_transform.basis * axis_dirs[i] * 0.05)
+		im.surface_set_color(color_gradient.sample(remap(sample.temperature, min_temp, max_temp, 0, 1)))
+		temperature_color_array.push_back(color_gradient.sample(remap(sample.temperature, min_temp, max_temp, 0, 1)))
+		im.surface_add_vertex(field_neighbor_mesh.to_local(sample.position))
+	im.surface_end()
+	n.surface_end()
+	var neighbor_surface := RenderingServer.mesh_get_surface(n.get_rid(), 0);
+	neighbor_attribute_array = neighbor_surface["attribute_data"]
+	temp_surface_format = neighbor_surface["format"]
+
+	var temperature_surface := RenderingServer.mesh_get_surface(im.get_rid(), 0);
+	temperature_attribute_array = temperature_surface["attribute_data"]
+	neighbor_surface_format = temperature_surface["format"]
+}
+
+void HVACField::update_debug_meshes(Ref<ArrayMesh> p_temperature_mesh, Ref<ImmediateMesh> p_neighbor_mesh) {
+	p_temperature_mesh->clear_surfaces()
+	p_temperature_mesh->surface_begin()
+	var draw_mesh := field_mesh.is_visible_in_tree()
+	var im := field_mesh.mesh as ImmediateMesh
+	var draw_neighbor_mesh := field_neighbor_mesh.is_visible_in_tree()
+	var n := field_neighbor_mesh.mesh as ImmediateMesh
+	var idx : int = 0
+	var temp_attribute_stride = RenderingServer.mesh_surface_get_format_attribute_stride(temp_surface_format, field.samples.size())
+	var neighbor_attribute_stride = RenderingServer.mesh_surface_get_format_attribute_stride(neighbor_surface_format, field.samples.size() * 6)
+	var temp_surface_format_offset = RenderingServer.mesh_surface_get_format_offset(temp_surface_format, field.samples.size(), Mesh.ARRAY_COLOR)
+	var neighbor_surface_format_offset = RenderingServer.mesh_surface_get_format_offset(neighbor_surface_format, field.samples.size() * 6, Mesh.ARRAY_COLOR)
+	for sample in field.samples:
+		if draw_neighbor_mesh:
+			for i in range(6):
+				var off : int = neighbor_attribute_stride * (idx * 6 + i) + neighbor_surface_format_offset
+				if (sample.neighbors_valid & (1 << i)) > 0:
+					neighbor_attribute_array.to_color_array()
+					neighbor_color_array[off] = cols[i]
+				else:
+					neighbor_color_array[off] = Color.BLACK
+		if draw_mesh:
+			temperature_color_array[temp_attribute_stride * idx + temp_surface_format_offset] = color_gradient.sample(remap(sample.temperature, min_temp, max_temp, 0, 1))
+		idx += 1
+	if draw_mesh:
+		RenderingServer.mesh_surface_update_attribute_region(im.get_rid(), 0, 0, temperature_attribute_array)
+	if draw_neighbor_mesh:
+		RenderingServer.mesh_surface_update_attribute_region(n.get_rid(), 0, 0, neighbor_attribute_array)
+
+}
+func update_meshes():
+	var draw_mesh := field_mesh.is_visible_in_tree()
+	var im : ImmediateMesh
+	if draw_mesh:
+		im = field_mesh.mesh as ImmediateMesh
+		im.clear_surfaces()
+		im.surface_begin(Mesh.PRIMITIVE_POINTS)
+	var draw_neighbor_mesh := field_neighbor_mesh.is_visible_in_tree()
+	var n : ImmediateMesh
+	if draw_neighbor_mesh:
+		n = field_neighbor_mesh.mesh as ImmediateMesh
+		n.clear_surfaces()
+		n.surface_begin(Mesh.PRIMITIVE_POINTS)
+	for sample in field.samples:
+		if draw_neighbor_mesh:
+			for i in range(6):
+				if (sample.neighbors_valid & (1 << i)) > 0:
+					n.surface_set_color(cols[i])
+					n.surface_add_vertex(field_mesh.to_local(sample.position) + field.bounds_transform.basis * axis_dirs[i] * 0.05)
+		if draw_mesh:
+			im.surface_set_color(color_gradient.sample(remap(sample.temperature, min_temp, max_temp, 0, 1)))
+			im.surface_add_vertex(field_neighbor_mesh.to_local(sample.position))
+	if draw_mesh:
+		im.surface_end()
+	if draw_neighbor_mesh:
+		n.surface_end()
+*/
 
 // Getter/setter spam :)
 
@@ -387,20 +475,6 @@ void HVACField::set_index_offsets_map(TypedArray<int> p_index_offsets_map) {
 }
 TypedArray<int> HVACField::get_index_offsets_map() const {
 	return index_offsets_map;
-}
-
-void HVACField::set_bounds_basis_axis_map(TypedArray<Vector3> p_bounds_basis_axis_map) {
-	bounds_basis_axis_map = p_bounds_basis_axis_map;
-}
-TypedArray<Vector3> HVACField::get_bounds_basis_axis_map() const {
-	return bounds_basis_axis_map;
-}
-
-void HVACField::set_sample_distance_map(TypedArray<float> p_sample_distance_map) {
-	sample_distance_map = p_sample_distance_map;
-}
-TypedArray<float> HVACField::get_sample_distance_map() const {
-	return sample_distance_map;
 }
 
 void HVACField::set_sim_parameters(Ref<HVACSimParameters> p_sim_parameters) {
@@ -478,10 +552,6 @@ void HVACField::_bind_methods() {
 	godot::ClassDB::bind_method(D_METHOD("get_sample_grid"), &HVACField::get_sample_grid);
 	godot::ClassDB::bind_method(D_METHOD("set_index_offsets_map", "index_offsets_map"), &HVACField::set_index_offsets_map);
 	godot::ClassDB::bind_method(D_METHOD("get_index_offsets_map"), &HVACField::get_index_offsets_map);
-	godot::ClassDB::bind_method(D_METHOD("set_bounds_basis_axis_map", "bounds_basis_axis_map"), &HVACField::set_bounds_basis_axis_map);
-	godot::ClassDB::bind_method(D_METHOD("get_bounds_basis_axis_map"), &HVACField::get_bounds_basis_axis_map);
-	godot::ClassDB::bind_method(D_METHOD("set_sample_distance_map", "sample_distance_map"), &HVACField::set_sample_distance_map);
-	godot::ClassDB::bind_method(D_METHOD("get_sample_distance_map"), &HVACField::get_sample_distance_map);
 	godot::ClassDB::bind_method(D_METHOD("set_sample_spacing", "sample_spacing"), &HVACField::set_sample_spacing);
 	godot::ClassDB::bind_method(D_METHOD("get_sample_spacing"), &HVACField::get_sample_spacing);
 	godot::ClassDB::bind_method(D_METHOD("set_sim_parameters", "sim_parameters"), &HVACField::set_sim_parameters);
@@ -495,7 +565,6 @@ void HVACField::_bind_methods() {
 
 	// Properties
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "sample_spacing"), "set_sample_spacing", "get_sample_spacing");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_sample_mass"), "set_air_sample_mass", "get_air_sample_mass");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "sim_parameters", PROPERTY_HINT_RESOURCE_TYPE, "HVACSimParameters"), "set_sim_parameters", "get_sim_parameters");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "draw_debug_shapes"), "set_draw_debug_shapes", "get_draw_debug_shapes");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "draw_in_bounds_space"), "set_draw_in_bounds_space", "get_draw_in_bounds_space");
@@ -504,7 +573,5 @@ void HVACField::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "samples", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_samples", "get_samples");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sample_grid", PROPERTY_HINT_TYPE_STRING, "24/17:HVACFieldSample", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sample_grid", "get_sample_grid");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "index_offsets_map", PROPERTY_HINT_ARRAY_TYPE, "int", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_index_offsets_map", "get_index_offsets_map");
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "bounds_basis_axis_map", PROPERTY_HINT_ARRAY_TYPE, "Vector3", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_bounds_basis_axis_map", "get_bounds_basis_axis_map");
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sample_distance_map", PROPERTY_HINT_ARRAY_TYPE, "float", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sample_distance_map", "get_sample_distance_map");
 	ADD_PROPERTY(PropertyInfo(Variant::TRANSFORM3D, "bounds_transform", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_bounds_transform", "get_bounds_transform");
 }
