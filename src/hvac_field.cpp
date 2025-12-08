@@ -139,7 +139,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 	}
 
 	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency;
-	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency;
+	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency * 0.001f;
 	int sample_count = samples.size();
 	int sample_update_count = sample_count;
 	// int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
@@ -158,33 +158,21 @@ void HVACField::propagate_air_samples(float p_delta) {
 		for (size_t i = 0; i < 6; i++) {
 			if ((sample->neighbors_valid & (1 << i)) > 0) {
 				int index = sample->grid_index + int(index_offsets_map[i]);
-				if (index >= sample_count || index < 0) {
+				if (index >= max_sample_idx || index < 0) {
 					continue;
 				}
-				Ref<HVACFieldSample> n_sample = samples[index];
+				Ref<HVACFieldSample> n_sample = sample_grid[index];
 				if (n_sample.is_null()) {
 					continue;
 				}
 				neighbor_avg += n_sample->temperature;
+				n_sample->blend_to_temperature(sample->temperature, air_propagation);
 				n_cnt++;
 			}
 		}
 
 		if (n_cnt > 0) {
 			neighbor_avg /= n_cnt;
-			for (size_t i = 0; i < 6; i++) {
-				if ((sample->neighbors_valid & (1 << i)) > 0) {
-					int index = sample->grid_index + int(index_offsets_map[i]);
-					if (index >= sample_count || index < 0) {
-						continue;
-					}
-					Ref<HVACFieldSample> n_sample = samples[index];
-					if (n_sample.is_null()) {
-						continue;
-					}
-					n_sample->blend_to_temperature(sample->temperature, air_propagation);
-				}
-			}
 			sample->blend_to_temperature(neighbor_avg, air_propagation);
 		}
 		if (sim_parameters->cooling) {
@@ -210,6 +198,19 @@ void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_
 	blend_samples_with(sample_indices, p_heat_container, blend_amount, !distribute_evenly);
 }
 
+void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool ignore_sample_count) {
+	ERR_FAIL_NULL(p_heat_container);
+	ERR_FAIL_NULL(sim_parameters);
+	if (samples.is_empty() || p_sample_indices.is_empty()) {
+		return;
+	}
+	float average_sample_temperature = get_average_temp(p_sample_indices);
+	float count_factor = ignore_sample_count ? 1.0 : p_sample_indices.size();
+	float mass_ratio = p_heat_container->mass / sim_parameters->air_sample_mass;
+	blend_samples_to(p_sample_indices, p_heat_container->temperature, p_blend_amount * mass_ratio / count_factor);
+	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount * count_factor * p_heat_container->mass / mass_ratio);
+}
+
 void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount) {
 	if (samples.is_empty() || p_sample_indices.is_empty()) {
 		return;
@@ -224,18 +225,6 @@ void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_tempe
 		}
 		sample->blend_to_temperature(p_temperature, p_blend_amount);
 	}
-}
-
-void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool ignore_sample_count) {
-	ERR_FAIL_NULL(p_heat_container);
-	ERR_FAIL_NULL(sim_parameters);
-	if (samples.is_empty() || p_sample_indices.is_empty()) {
-		return;
-	}
-	float average_sample_temperature = get_average_temp(p_sample_indices);
-	float count_factor = ignore_sample_count ? 1.0 : p_sample_indices.size();
-	blend_samples_to(p_sample_indices, p_heat_container->temperature, p_blend_amount / count_factor * p_heat_container->mass / sim_parameters->air_sample_mass);
-	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount * count_factor / sim_parameters->air_sample_mass);
 }
 
 Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
@@ -313,10 +302,8 @@ TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_s
 }
 
 float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
-	if (samples.is_empty() || p_sample_indices.is_empty()) {
-		ERR_FAIL_NULL_V(sim_parameters, 0.0f);
-		return sim_parameters->ambient_temperature;
-	}
+	ERR_FAIL_NULL_V(sim_parameters, 0.0f);
+	ERR_FAIL_COND_V_MSG(samples.is_empty() || p_sample_indices.is_empty(), sim_parameters->ambient_temperature, "Can't get average temperature of empty sample array!");
 	float sum = 0;
 	int n_cnt = 0;
 	for (size_t i = 0; i < p_sample_indices.size(); i++) {
@@ -333,7 +320,6 @@ float HVACField::get_average_temp(TypedArray<int> p_sample_indices) {
 	if (n_cnt > 0) {
 		return sum / n_cnt;
 	} else {
-		ERR_FAIL_NULL_V(sim_parameters, 0.0f);
 		return sim_parameters->ambient_temperature;
 	}
 }

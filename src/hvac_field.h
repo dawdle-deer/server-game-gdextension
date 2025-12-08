@@ -47,8 +47,8 @@ public:
 	void propagate_air_samples(float p_delta);
 	void propagate_heat_container_to_box(float p_delta, HeatContainer *p_heat_container, Vector3 p_box_center, Vector3 p_box_size, Basis p_box_basis, bool p_distribute_evenly);
 
-	void blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount);
 	void blend_samples_with(TypedArray<int> p_sample_indices, HeatContainer *p_heat_container, float p_blend_amount, bool p_ignore_sample_count = false);
+	void blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount);
 
 	Ref<HVACFieldSample> get_sample_at(Vector3 p_position);
 	AABB get_grid_bounding_aabb(Vector3 p_center, AABB p_bounds, Basis p_basis);
