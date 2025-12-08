@@ -121,6 +121,7 @@ void HVACField::generate_field(Transform3D p_bounds_transform, Vector3 p_bounds_
 			}
 		}
 	}
+	timeslice_factor = float(samples.size()) / sim_parameters->air_propagation_limit;
 	print_line_rich("[u]Finished Generating HVAC Field[/u]");
 }
 
@@ -130,8 +131,8 @@ void HVACField::propagate_air_samples(float p_delta) {
 		return;
 	}
 
-	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency;
-	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency * 0.001f;
+	float air_propagation = p_delta * sim_parameters->air_propagation_speed * sim_parameters->efficiency * timeslice_factor;
+	float cool_speed = p_delta * sim_parameters->cool_rate * sim_parameters->efficiency * timeslice_factor * 0.001f;
 	int sample_count = samples.size();
 	//int sample_update_count = sample_count;
 	int sample_update_count = Math::min(sim_parameters->air_propagation_limit, sample_count);
@@ -457,6 +458,9 @@ Vector3 HVACField::get_sample_spacing() const {
 
 void HVACField::set_samples(TypedArray<HVACFieldSample> p_samples) {
 	samples = p_samples;
+	if (sim_parameters != nullptr) {
+		timeslice_factor = float(samples.size()) / sim_parameters->air_propagation_limit;
+	}
 }
 TypedArray<HVACFieldSample> HVACField::get_samples() const {
 	return samples;
@@ -479,6 +483,9 @@ TypedArray<int> HVACField::get_index_offsets_map() const {
 
 void HVACField::set_sim_parameters(Ref<HVACSimParameters> p_sim_parameters) {
 	sim_parameters = p_sim_parameters;
+	if (!samples.is_empty()) {
+		timeslice_factor = float(samples.size()) / sim_parameters->air_propagation_limit;
+	}
 }
 
 Ref<HVACSimParameters> HVACField::get_sim_parameters() const {

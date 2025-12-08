@@ -37,6 +37,7 @@ public:
 	bool draw_debug_shapes = false;
 	bool draw_in_bounds_space = false;
 	int max_sample_idx;
+	float timeslice_factor = 1.0f;
 	// DebugDraw3D *debug_drawer;
 
 	int grid_pos_to_idx_v(Vector3i p_pos);
