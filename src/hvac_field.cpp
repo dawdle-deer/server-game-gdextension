@@ -182,7 +182,7 @@ void HVACField::propagate_air_samples(float p_delta) {
 					if (n_sample.is_null()) {
 						continue;
 					}
-					n_sample->blend_to_temperature(neighbor_avg, air_propagation);
+					n_sample->blend_to_temperature(sample->temperature, air_propagation);
 				}
 			}
 			sample->blend_to_temperature(neighbor_avg, air_propagation);
@@ -206,9 +206,8 @@ void HVACField::propagate_heat_container_to_box(float p_delta, HeatContainer *p_
 		return;
 	}
 
-	float count_factor = distribute_evenly ? float(sample_indices.size()) : 1.0;
-	float blend_amount = Math::clamp(p_delta * sim_parameters->element_propagation_speed * sim_parameters->efficiency / count_factor, 0.0f, 1.0f);
-	blend_samples_with(sample_indices, p_heat_container, blend_amount);
+	float blend_amount = Math::clamp(p_delta * sim_parameters->element_propagation_speed * sim_parameters->efficiency, 0.0f, 1.0f);
+	blend_samples_with(sample_indices, p_heat_container, blend_amount, !distribute_evenly);
 }
 
 void HVACField::blend_samples_to(TypedArray<int> p_sample_indices, float p_temperature, float p_blend_amount) {
@@ -233,11 +232,10 @@ void HVACField::blend_samples_with(TypedArray<int> p_sample_indices, HeatContain
 	if (samples.is_empty() || p_sample_indices.is_empty()) {
 		return;
 	}
-	float temperature_cache = p_heat_container->temperature;
-	float mass_ratio = sim_parameters->air_sample_mass / p_heat_container->mass;
 	float average_sample_temperature = get_average_temp(p_sample_indices);
-	blend_samples_to(p_sample_indices, temperature_cache, p_blend_amount * mass_ratio);
-	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount / mass_ratio * (ignore_sample_count ? 1.0 : p_sample_indices.size()), true);
+	float count_factor = ignore_sample_count ? 1.0 : p_sample_indices.size();
+	blend_samples_to(p_sample_indices, p_heat_container->temperature, p_blend_amount / count_factor * p_heat_container->mass / sim_parameters->air_sample_mass);
+	p_heat_container->blend_to_temperature(average_sample_temperature, p_blend_amount * count_factor / sim_parameters->air_sample_mass);
 }
 
 Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
@@ -253,7 +251,6 @@ Ref<HVACFieldSample> HVACField::get_sample_at(Vector3 p_position) {
 AABB HVACField::get_grid_bounding_aabb(Vector3 p_center, AABB p_bounds, Basis p_basis) {
 	AABB grid_aligned_bounds = AABB(pos_to_grid_unrounded(p_center), Vector3(0.0f, 0.0f, 0.0f));
 	for (size_t i = 0; i < 8; i++) {
-		// Vector3 corner_pos_world = p_center + p_basis.xform(p_bounds.get_endpoint(i) - p_center);
 		Vector3 corner_pos_world = p_bounds.position + p_basis.xform(p_bounds.get_endpoint(i) - p_bounds.position);
 		Vector3 corner_pos_grid = pos_to_grid_unrounded(corner_pos_world).floor();
 		// if (draw_debug_shapes) {
@@ -262,19 +259,10 @@ AABB HVACField::get_grid_bounding_aabb(Vector3 p_center, AABB p_bounds, Basis p_
 		// }
 		grid_aligned_bounds.expand_to(corner_pos_grid);
 		grid_aligned_bounds.expand_to(corner_pos_grid + Vector3(1, 1, 1));
-		// for (size_t y = 0; y < 2; y++) {
-		// 	for (size_t z = 0; z < 2; z++) {
-		// 		for (size_t x = 0; x < 2; x++) {
-		// 			grid_aligned_bounds.expand_to(corner_pos_grid + Vector3(x, y, z));
-		// 		}
-		// 	}
-		// }
 	}
 	return grid_aligned_bounds;
 }
 
-// const draw_center : bool = false
-// const draw_bounds_space : bool = false
 TypedArray<int> HVACField::get_grid_indices_in_box(Vector3 p_center, Vector3 p_size, Basis p_basis) {
 	Vector3 box_origin = p_center - p_basis.xform(p_size * 0.5);
 	AABB box_bounds = AABB(box_origin, p_size);

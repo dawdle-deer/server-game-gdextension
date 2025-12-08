@@ -19,7 +19,7 @@ public:
 
 	void blend_to(const HeatContainer *target, float delta);
 	void blend_with(HeatContainer *target, float delta);
-	void blend_to_temperature(float temperature, float delta, bool ignore_mass);
+	void blend_to_temperature(float temperature, float delta);
 
 	// setter/getters
 

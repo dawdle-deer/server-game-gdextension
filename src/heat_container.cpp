@@ -10,7 +10,7 @@ float HeatContainer::get_temperature() const {
 }
 
 void HeatContainer::set_mass(float p_mass) {
-	mass = p_mass;
+	mass = Math::max(p_mass, 0.00001f);
 }
 float HeatContainer::get_mass() const {
 	return mass;
@@ -54,11 +54,11 @@ void HeatContainer::blend_with(HeatContainer *p_target, float p_delta) {
 /// @param p_temperature
 /// @param p_delta
 /// @param ignore_mass
-void HeatContainer::blend_to_temperature(float p_temperature, float p_delta, bool ignore_mass) {
+void HeatContainer::blend_to_temperature(float p_temperature, float p_delta) {
 	temperature = Math::lerp(
 			temperature,
 			p_temperature,
-			Math::clamp(p_delta * (ignore_mass ? 1.0f : (1.0f / mass)) * (1.0f - heat_retention), 0.0f, 1.0f));
+			Math::clamp(p_delta / mass * (1.0f - heat_retention), 0.0f, 1.0f));
 }
 
 void HeatContainer::_bind_methods() {
@@ -71,7 +71,7 @@ void HeatContainer::_bind_methods() {
 
 	godot::ClassDB::bind_method(D_METHOD("blend_to", "target", "delta"), &HeatContainer::blend_to);
 	godot::ClassDB::bind_method(D_METHOD("blend_with", "target", "delta"), &HeatContainer::blend_with);
-	godot::ClassDB::bind_method(D_METHOD("blend_to_temperature", "temperature", "delta", "ignore_mass"), &HeatContainer::blend_to_temperature);
+	godot::ClassDB::bind_method(D_METHOD("blend_to_temperature", "temperature", "delta"), &HeatContainer::blend_to_temperature);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "temperature"), "set_temperature", "get_temperature");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mass"), "set_mass", "get_mass");
